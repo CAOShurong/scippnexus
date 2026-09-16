@@ -276,6 +276,26 @@ def test_auxiliary_signal_causes_load_as_dataset(h5root) -> None:
     assert_identical(data[...], sc.Dataset({'signal': signal, 'xx': aux}))
 
 
+def test_auxiliary_signal_with_different_dims_loads_as_data_group(h5root) -> None:
+    signal = sc.array(dims=['tof'], unit='counts', values=[1, 2, 3])
+    frame_total = sc.array(dims=['frame'], unit='counts', values=[4, 5])
+    data = snx.create_class(h5root, 'data1', NXdata)
+    data.attrs['axes'] = signal.dims
+    data.attrs['signal'] = 'signal'
+    data.attrs['auxiliary_signals'] = ['frame_total']
+    snx.create_field(data, 'signal', signal)
+    snx.create_field(data, 'frame_total', frame_total)
+
+    loaded = snx.Group(data, definitions=snx.base_definitions())[...]
+
+    assert isinstance(loaded, sc.DataGroup)
+    assert_identical(loaded['signal'], sc.DataArray(signal))
+    assert_identical(
+        loaded['frame_total'],
+        sc.array(dims=['dim_0'], unit='counts', values=[4, 5]),
+    )
+
+
 def test_NXlog_data_is_loaded_as_time_dependent_data_array(nxroot) -> None:
     da = sc.DataArray(
         data=sc.array(dims=['time'], unit='K', values=[1, 2, 3]),

@@ -110,6 +110,10 @@ class NXdata(NXobject):
             # len(dims).
             shape = _squeeze_trailing(dims, field.dataset.shape)
             field.sizes = dict(zip(dims, shape, strict=False))
+        elif name in self._aux_signals:
+            # Auxiliary signals are allowed to have dimensions unrelated to the
+            # primary signal. Keep the field's fallback dimensions in that case.
+            return
         elif self._valid:
             s1 = self._signal.sizes
             s2 = field.sizes
@@ -376,7 +380,13 @@ class NXdata(NXobject):
             signals = {self._signal_name: da}
             signals.update(aux)
             if all(isinstance(v, sc.Variable | sc.DataArray) for v in signals.values()):
-                return sc.Dataset(signals)
+                try:
+                    return sc.Dataset(signals)
+                except sc.DimensionError:
+                    # A Dataset requires matching item dimensionality. NeXus permits
+                    # auxiliary signals on unrelated dimensions, so retain those as
+                    # separate DataGroup entries instead.
+                    pass
             return sc.DataGroup(signals)
         return da
 
