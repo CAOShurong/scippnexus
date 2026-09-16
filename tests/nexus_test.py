@@ -133,10 +133,28 @@ def test_nxobject_getitem_by_class(nxroot) -> None:
     nxroot['entry'].create_class('events_1', NXevent_data)
     assert list(nxroot[NXentry]) == ['entry']
     assert list(nxroot[NXmonitor]) == ['monitor']
-    assert list(nxroot['entry'][NXmonitor]) == []  # not nested
-    assert list(nxroot[NXlog]) == []  # nested
+    with pytest.raises(KeyError, match='NXmonitor') as error:
+        nxroot['entry'][NXmonitor]  # not nested
+    assert error.value.args == (NXmonitor,)
+    with pytest.raises(KeyError, match='NXlog'):
+        nxroot[NXlog]  # nested
     assert list(nxroot['entry'][NXlog]) == ['log']
     assert set(nxroot['entry'][NXevent_data]) == {'events_0', 'events_1'}
+
+
+def test_nxobject_contains_by_class(nxroot) -> None:
+    nxroot.create_class('monitor', NXmonitor)
+
+    assert NXentry in nxroot
+    assert NXmonitor in nxroot
+    assert NXlog not in nxroot
+
+
+def test_nxobject_get_by_class_returns_default_when_absent(nxroot) -> None:
+    default = object()
+
+    assert nxroot.get(NXmonitor) is None
+    assert nxroot.get(NXmonitor, default) is default
 
 
 def test_nxobject_getitem_by_class_get_fields(nxroot) -> None:
@@ -144,7 +162,8 @@ def test_nxobject_getitem_by_class_get_fields(nxroot) -> None:
     nxroot['entry'].create_class('events_0', NXevent_data)
     nxroot['entry']['field1'] = sc.arange('event', 4.0, unit='ns')
     nxroot['entry']['field2'] = sc.arange('event', 2.0, unit='ns')
-    assert list(nxroot[snx.Field]) == []
+    with pytest.raises(KeyError, match='Field'):
+        nxroot[snx.Field]
     assert set(nxroot['entry'][snx.Field]) == {'field1', 'field2'}
 
 

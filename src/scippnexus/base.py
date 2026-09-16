@@ -308,11 +308,14 @@ class Group(Mapping):
         self, select: type | list[type]
     ) -> dict[str, NXobject | Field]:
         children = {}
-        select = (select,) if isinstance(select, type) else select
+        requested = select
+        selectors = (select,) if isinstance(select, type) else select
         for key, child in self._children.items():
             nx_class = Field if isinstance(child, Field) else child.nx_class
-            if nx_class is not None and any(nx_class == sel for sel in select):
+            if nx_class is not None and any(nx_class == sel for sel in selectors):
                 children[key] = self[key]
+        if not children:
+            raise KeyError(requested)
         return children
 
     @overload
