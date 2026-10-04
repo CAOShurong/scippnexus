@@ -133,11 +133,8 @@ def test_nxobject_getitem_by_class(nxroot) -> None:
     nxroot['entry'].create_class('events_1', NXevent_data)
     assert list(nxroot[NXentry]) == ['entry']
     assert list(nxroot[NXmonitor]) == ['monitor']
-    with pytest.raises(KeyError, match='NXmonitor') as error:
-        nxroot['entry'][NXmonitor]  # not nested
-    assert error.value.args == (NXmonitor,)
-    with pytest.raises(KeyError, match='NXlog'):
-        nxroot[NXlog]  # nested
+    assert nxroot['entry'][NXmonitor] == {}  # not nested
+    assert nxroot[NXlog] == {}  # nested
     assert list(nxroot['entry'][NXlog]) == ['log']
     assert set(nxroot['entry'][NXevent_data]) == {'events_0', 'events_1'}
 
@@ -162,8 +159,7 @@ def test_nxobject_getitem_by_class_get_fields(nxroot) -> None:
     nxroot['entry'].create_class('events_0', NXevent_data)
     nxroot['entry']['field1'] = sc.arange('event', 4.0, unit='ns')
     nxroot['entry']['field2'] = sc.arange('event', 2.0, unit='ns')
-    with pytest.raises(KeyError, match='Field'):
-        nxroot[snx.Field]
+    assert nxroot[snx.Field] == {}
     assert set(nxroot['entry'][snx.Field]) == {'field1', 'field2'}
 
 
@@ -178,6 +174,82 @@ def test_nxobject_getitem_by_class_list(nxroot) -> None:
         'events_1',
     }
     assert set(nxroot['entry'][[NXlog, snx.Field]]) == {'log', 'field1'}
+
+
+@pytest.mark.parametrize('select', [NXlog, snx.Field, [NXlog, snx.Field]])
+def test_nxobject_empty_class_selection_preserves_getitem(nxroot, select) -> None:
+    default = object()
+
+    assert nxroot[select] == {}
+    assert select not in nxroot
+    assert nxroot.get(select) is None
+    assert nxroot.get(select, default) is default
+
+
+@pytest.mark.parametrize('default', [False, 0, {}, sc.scalar(0), sc.arange('x', 3.0)])
+def test_nxobject_empty_class_selection_preserves_default_identity(nxroot, default):
+    assert nxroot.get(NXlog, default) is default
+
+
+@pytest.mark.parametrize('select', [NXentry, [NXentry, NXlog]])
+def test_nxobject_present_class_selection_supports_contains_and_get(
+    nxroot, select
+) -> None:
+    assert select in nxroot
+    assert set(nxroot.get(select)) == {'entry'}
+    assert nxroot.get(select)['entry'] is nxroot['entry']
+
+
+def test_nxobject_class_selection_matches_exact_class_not_base_class(nxroot) -> None:
+    assert nxroot[snx.NXobject] == {}
+    assert snx.NXobject not in nxroot
+    assert nxroot.get(snx.NXobject) is None
+
+
+def test_nxobject_class_membership_does_not_populate_fields(
+    nxroot, monkeypatch
+) -> None:
+    nxroot['entry']['field'] = sc.arange('x', 3.0)
+    entry = nxroot['entry']
+
+    def fail_populate_fields(self):
+        pytest.fail('Class membership must not populate fields')
+
+    monkeypatch.setattr(snx.Group, '_populate_fields', fail_populate_fields)
+
+    assert snx.Field in entry
+    assert [NXlog, snx.Field] in entry
+    assert NXlog not in entry
+
+
+def test_nxobject_contains_and_get_preserve_string_paths_and_empty_groups(
+    nxroot,
+) -> None:
+    nxroot['entry'].create_class('log', NXlog)
+    default = object()
+
+    for path in ('entry', 'entry/log', '/entry/log'):
+        assert path in nxroot
+        assert nxroot.get(path).name == '/' + path.lstrip('/')
+    for path in ('absent', 'entry/absent', '/entry/absent'):
+        assert path not in nxroot
+        assert nxroot.get(path, default) is default
+
+
+def test_nxobject_get_returns_falsey_field_data_without_using_truthiness(
+    nxroot,
+) -> None:
+    nxroot['value'] = sc.scalar(False, unit=None)
+
+    assert 'value' in nxroot
+    assert nxroot.get('value') is nxroot['value']
+    assert not nxroot.get('value')[()]
+
+
+def test_nxobject_get_preserves_loaded_scipp_data(nxroot) -> None:
+    nxroot['value'] = sc.arange('x', 3.0)
+
+    assert_identical(nxroot.get(()), nxroot[()])
 
 
 def test_nxobject_dataset_items_are_returned_as_Field(nxroot) -> None:
