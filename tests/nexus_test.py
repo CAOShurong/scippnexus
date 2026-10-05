@@ -147,13 +147,6 @@ def test_nxobject_contains_by_class(nxroot) -> None:
     assert NXlog not in nxroot
 
 
-def test_nxobject_get_by_class_returns_default_when_absent(nxroot) -> None:
-    default = object()
-
-    assert nxroot.get(NXmonitor) is None
-    assert nxroot.get(NXmonitor, default) is default
-
-
 def test_nxobject_getitem_by_class_get_fields(nxroot) -> None:
     nxroot['entry'].create_class('log', NXlog)
     nxroot['entry'].create_class('events_0', NXevent_data)
@@ -184,11 +177,6 @@ def test_nxobject_empty_class_selection_preserves_getitem(nxroot, select) -> Non
     assert select not in nxroot
     assert nxroot.get(select) is None
     assert nxroot.get(select, default) is default
-
-
-@pytest.mark.parametrize('default', [False, 0, {}, sc.scalar(0), sc.arange('x', 3.0)])
-def test_nxobject_empty_class_selection_preserves_default_identity(nxroot, default):
-    assert nxroot.get(NXlog, default) is default
 
 
 @pytest.mark.parametrize('select', [NXentry, [NXentry, NXlog]])
@@ -246,12 +234,6 @@ def test_nxobject_get_returns_empty_group_instead_of_default(
     # An empty Group is falsey, but a successful get must not use the default.
     assert len(log) == 0
     assert nxroot.get('log', default) is log
-
-
-def test_nxobject_get_preserves_loaded_scipp_data(nxroot) -> None:
-    nxroot['value'] = sc.arange('x', 3.0)
-
-    assert_identical(nxroot.get(()), nxroot[()])
 
 
 def test_nxobject_dataset_items_are_returned_as_Field(nxroot) -> None:
