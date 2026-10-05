@@ -236,14 +236,16 @@ def test_nxobject_contains_and_get_preserve_string_paths_and_empty_groups(
         assert nxroot.get(path, default) is default
 
 
-def test_nxobject_get_returns_falsey_field_data_without_using_truthiness(
+def test_nxobject_get_returns_empty_group_instead_of_default(
     nxroot,
 ) -> None:
-    nxroot['value'] = sc.scalar(False, unit=None)
+    nxroot.create_class('log', NXlog)
+    log = nxroot['log']
+    default = object()
 
-    assert 'value' in nxroot
-    assert nxroot.get('value') is nxroot['value']
-    assert not nxroot.get('value')[()]
+    # An empty Group is falsey, but a successful get must not use the default.
+    assert len(log) == 0
+    assert nxroot.get('log', default) is log
 
 
 def test_nxobject_get_preserves_loaded_scipp_data(nxroot) -> None:

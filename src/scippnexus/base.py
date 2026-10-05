@@ -323,7 +323,9 @@ class Group(Mapping):
             )
         return super().__contains__(key)
 
-    def get(self, key, default=None):
+    def get(
+        self, key: str | type | list[type] | ScippIndex, default: Any = None
+    ) -> Any:
         """Return a child or class selection, or default when there is no match."""
         if _is_nx_class_selector(key):
             # Keep empty class getitem selections for existing callers, but make
